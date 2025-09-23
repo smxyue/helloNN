@@ -55,7 +55,7 @@ def get_digital(digit):
             if idx < num_samples:
                 # Get the image data and reshape it to 28x28
                 image = training_images[digit_indices[start_idx + idx]].reshape(28, 28)
-                axes[i, j].imshow(image, cmap='gray', vmin=0, vmax=1)
+                axes[i, j].imshow(image, cmap='`gray', vmin=0, vmax=1)
                 axes[i, j].axis('off')
             else:
                 # Hide empty subplots

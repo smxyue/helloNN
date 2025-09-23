@@ -302,10 +302,8 @@ def load_my_shallow_net():
         return None
     return model
 
-
-# Main execution
-if __name__ == "__main__":
-    # Define the same transform used for training
+def tranin_and_use():
+        # Define the same transform used for training
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
@@ -335,7 +333,10 @@ if __name__ == "__main__":
     
     #correct_count, total_samples = random_test_samples(model, 100)
 
-def draw_test():
+# Main execution
+
+
+def test_hand_draw():
     fn = create_drawing_window()
     image = mnist_image(fn)
     model =load_my_shallow_net()
@@ -345,3 +346,34 @@ def draw_test():
         # Call the function with the loaded model and
         got = predict_data(model, image)
         print("Predicted digit:", got)
+
+def test_drawed_digits_shallow():
+    model =load_my_shallow_net()
+    if (model == None):
+        print("Failed to load model")
+        return
+    
+    for i in range(10):
+        fn=f'test{i}.png'
+        img =mnist_image(fn)
+        
+        if (model == None):
+            print("Failed to load model")
+        else:
+            # Call the function with the loaded model and
+            got = predict_data(model, img)
+            print(f'Predict {fn}: {got}')
+
+if __name__ == "__main__":
+    #tranin_and_use()
+    #for i in range(10):
+    #    test_hand_draw()
+    #model =load_my_shallow_net()
+    #if (model == None):
+    #    print("Failed to load model")
+    #else:
+        # Call the function with the loaded model and
+        #got = predict_data(model, image)
+        #print("Predicted digit:", got)
+    #    random_test_samples(model, 20)
+    test_drawed_digits_shallow()

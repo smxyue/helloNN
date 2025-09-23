@@ -81,7 +81,7 @@ def predict_with_conv(model,img):
     ###predicted_confidence = torch.softmax(output, dim=1).max().item()
     ###print(f"Predicted class: {predicted_class.item()} with confidence {predicted_confidence:.2%}")
 
-def draw_test_conv():
+def test_drawed_digital_conv():
     model = load_torch_conv_net(CHKPOINT_FILE)
     if model is None:
          print("No trained model found, returning")
@@ -109,7 +109,7 @@ def get_pytorch_loaders(filename="data/mnist.pkl.gz", batch_size=10):
     test_loader = DataLoader(TensorDataset(test_x, test_y), batch_size=batch_size, shuffle=False)
     return train_loader, test_loader
 
-def basic_conv1(epochs=10, lr=0.1):
+def train_conv_mode(epochs=10, lr=0.1):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = BasicConvNet().to(device)
     optimizer = optim.SGD(model.parameters(), lr=lr)
@@ -164,4 +164,5 @@ def basic_conv1(epochs=10, lr=0.1):
     return model
 
 if __name__ == "__main__":
-    basic_conv1()
+    #train_conv_mode()
+    test_drawed_digital_conv()
