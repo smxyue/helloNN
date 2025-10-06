@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黑白格子绘图板</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e6e6e6;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(30, 30, 46, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .main-area {
+            display: flex;
+            align-items: flex-start;
+            gap: 25px;
+        }
+        
+        .grid-container {
+            position: relative;
+        }
+        
+        .grid {
+            display: grid;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+        
+        .cell.black {
+            background-color: #0a0a1a;
+            color: #ffffff;
+        }
+        
+        .cell.white {
+            background-color: #f0f0f0;
+            color: #000000;
+        }
+        
+        .cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.5);
+        }
+        
+        .row-sums {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            margin-left: 15px;
+        }
+        
+        .row-sum {
+            height: 30px;
+            display: flex;
+            align-items: center;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #64b5f6;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 0 10px;
+            border-radius: 4px;
+            margin: 1px 0;
+        }
+        
+        .column-sums {
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #64b5f6;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            word-break: break-all;
+            max-width: 400px;
+            text-align: center;
+        }
+        
+        .controls {
+            margin-bottom: 25px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        input[type="number"] {
+            width: 70px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 181, 246, 0.5);
+            border-radius: 6px;
+            color: #e6e6e6;
+            font-size: 16px;
+            text-align: center;
+        }
+        
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #64b5f6;
+            box-shadow: 0 0 0 2px rgba(100, 181, 246, 0.3);
+        }
+        
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(to right, #2196F3, #21CBF3);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+            background: linear-gradient(to right, #1e88e5, #00b0ff);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .color-0 {
+            color: #ffffff !important;
+            text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+        }
+        
+        .color-1 {
+            color: #000000 !important;
+            text-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls">
+            <label>格子数量：</label>
+            <input type="number" id="gridSize" value="10" min="2" max="20">
+            <button onclick="createGrid()">生成新格子</button>
+            <button onclick="clearGrid()">清空格子</button>
+        </div>
+        
+        <div class="main-area">
+            <div class="grid-container">
+                <div id="grid" class="grid"></div>
+            </div>
+            <div id="rowSums" class="row-sums"></div>
+        </div>
+        
+        <div id="columnSums" class="column-sums"></div>
+    </div>
+
+    <script>
+        let gridSize = 10;
+        let cells = [];
+
+        function createGrid() {
+            gridSize = parseInt(document.getElementById('gridSize').value);
+            const grid = document.getElementById('grid');
+            const rowSums = document.getElementById('rowSums');
+            
+            // 清空现有内容
+            grid.innerHTML = '';
+            rowSums.innerHTML = '';
+            cells = [];
+            
+            // 设置网格样式
+            grid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            
+            // 创建格子
+            for (let i = 0; i < gridSize; i++) {
+                cells[i] = [];
+                for (let j = 0; j < gridSize; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell white color-1';
+                    cell.textContent = '1';
+                    cell.onclick = () => toggleCell(i, j);
+                    grid.appendChild(cell);
+                    cells[i][j] = { element: cell, value: 1 };
+                }
+            }
+            
+            // 创建行和列
+            updateRowSums();
+            updateColumnSums();
+        }
+
+        function toggleCell(row, col) {
+            const cell = cells[row][col];
+            if (cell.value === 1) {
+                cell.value = 0;
+                cell.element.className = 'cell black color-0';
+                cell.element.textContent = '0';
+            } else {
+                cell.value = 1;
+                cell.element.className = 'cell white color-1';
+                cell.element.textContent = '1';
+            }
+            updateRowSums();
+            updateColumnSums();
+        }
+
+        function updateRowSums() {
+            const rowSums = document.getElementById('rowSums');
+            rowSums.innerHTML = '';
+            
+            for (let i = 0; i < gridSize; i++) {
+                let sum = '';
+                for (let j = 0; j < gridSize; j++) {
+                    sum += cells[i][j].value;
+                }
+                const sumDiv = document.createElement('div');
+                sumDiv.className = 'row-sum';
+                sumDiv.textContent = sum;
+                rowSums.appendChild(sumDiv);
+            }
+        }
+
+        function updateColumnSums() {
+            const columnSums = document.getElementById('columnSums');
+            let allSums = '';
+            
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    allSums += cells[i][j].value;
+                }
+            }
+            
+            columnSums.textContent = '图片数字：' + allSums;
+        }
+
+        function clearGrid() {
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    cells[i][j].value = 1;
+                    cells[i][j].element.className = 'cell white color-1';
+                    cells[i][j].element.textContent = '1';
+                }
+            }
+            updateRowSums();
+            updateColumnSums();
+        }
+
+        // 初始化
+        createGrid();
+    </script>
+</body>
+</html>

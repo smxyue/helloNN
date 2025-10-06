@@ -160,6 +160,53 @@ def mnist_image(filename):
     result = np.clip(result, 0, 1)
     
     return result
+def mnist_data(image):
+    
+    # Find bounding box of non-zero pixels and crop
+    coords = np.column_stack(np.where(image > 0))
+    if len(coords) > 0:
+        y_min, x_min = coords.min(axis=0)
+        y_max, x_max = coords.max(axis=0)
+        cropped = image[y_min:y_max+1, x_min:x_max+1]
+         # 修正：补齐为正方形
+        h, w = cropped.shape
+        size = max(h, w)
+        square = np.zeros((size, size), dtype=cropped.dtype)
+        y_start = (size - h) // 2
+        x_start = (size - w) // 2
+        square[y_start:y_start+h, x_start:x_start+w] = cropped
+    else:
+        # If image is all zeros, use the original image
+        square = image
+    
+    # Resize to 20x20
+    resized = cv2.resize(square, (20, 20), interpolation=cv2.INTER_AREA)
+    
+    # Create a 28x28 canvas with black background
+    canvas = np.zeros((28, 28), dtype=np.float32)
+    
+    # Place the resized image in the center (with 4 pixels border on each side)
+    canvas[4:24, 4:24] = resized
+        
+    # Apply MNIST normalization
+    mnist_mean = 0.1307
+    mnist_std = 0.3081
+    
+    # Standardize using current image statistics
+    current_mean = canvas.mean()
+    current_std = canvas.std()
+    
+    if current_std > 0:
+        standardized = (canvas - current_mean) / current_std
+        # Adjust to match MNIST's specific mean and std
+        result = standardized * mnist_std + mnist_mean
+    else:
+        result = np.full_like(canvas, mnist_mean)
+    
+    # Ensure values stay in valid range [0, 1]
+    result = np.clip(result, 0, 1)
+    
+    return result
 
 
 
@@ -247,3 +294,107 @@ def random_show_mnist_data():
             randomIndex += 1
     plt.tight_layout()
     plt.show()
+
+def std_mnist_dataset():
+    trd,vd,td= load_data()
+    for i in range(len(trd[0])):
+        img=trd[0][i].reshape(28,28)
+        img=mnist_data(img)
+        trd[0][i]=img.reshape(784)
+    
+    for i in range(len(vd[0])):
+        img=vd[0][i].reshape(28,28)
+        img=mnist_data(img)
+        vd[0][i]=img.reshape(784)
+
+    for i in range(len(td[0])):
+        img=td[0][i].reshape(28,28)
+        img=mnist_data(img)
+        td[0][i]=img.reshape(784)
+
+    with open("data/mnist_std_yue.pkl", "wb") as f:
+        pickle.dump((trd,vd,td), f)
+    print("Standardized MNIST dataset saved to 'data/mnist_std_yue.pkl'")
+
+MY_MNIST_DATASET_FILE = "data/mnist_dataset_yue.pkl"
+def create_my_dataset():
+    my_digits = []
+    if os.path.exists(MY_MNIST_DATASET_FILE):
+        with open(MY_MNIST_DATASET_FILE, 'rb') as f:
+            my_digits = pickle.load(f)
+            print(f"Loaded my digits dataset from '{MY_MNIST_DATASET_FILE}' with samples: {len(my_digits)}")
+    
+    for i in range(10):
+        create_drawing_window()
+        img = mnist_image("saved.png")
+        my_digits.append((img.reshape(784), i))
+
+    with open(MY_MNIST_DATASET_FILE, 'wb') as f:
+        pickle.dump(my_digits, f)
+    print(f"My digits dataset saved to '{MY_MNIST_DATASET_FILE}' with samples: {len(my_digits)}")
+
+def load_data_yue(filename="data/mnist_std_yue.pkl"):
+    with open(filename, 'rb') as f:
+        training_data, validation_data, test_data = pickle.load(f, encoding="latin1")
+    return [training_data, validation_data, test_data]
+
+def load_my_dataset(filename=MY_MNIST_DATASET_FILE):
+    with open(filename, 'rb') as f:
+        my_digits = pickle.load(f)
+    return my_digits
+def show_my_dataset():
+    my_digits = load_my_dataset()
+    num_samples = min(80, len(my_digits))
+    plt.figure(figsize=(9, 9))
+    for x in range(8):
+        for y in range(10):
+            idx = x * 10 + y
+            if idx < num_samples:
+                plt.subplot(8, 10, idx + 1)
+                img = my_digits[idx][0].reshape(28, 28)
+                label = my_digits[idx][1]
+                plt.imshow(img, cmap='gray', vmin=0, vmax=1)
+                plt.title(f"{label}")
+                plt.axis('off')
+    plt.show()
+
+
+def compare_mnist_yue_vs_original():
+    otr,ov,ot = load_data()
+    ytr,yv,yt = load_data_yue()
+    
+    print(f"Original MNIST dataset:{len(otr[0])} training samples")
+    print(f"yue MNIST dataset:{len(ytr[0])} training samples")
+    plt.figure(figsize=(9, 9))
+    randomIndex = np.random.randint(0, len(otr[0])-40)
+    for x in range(0,8,2):
+        for y in range(10):
+            subidx = x*10 + y + 1
+            plt.subplot(8,10, subidx)
+            dataimg = otr[0][randomIndex+subidx].reshape(28, 28)
+            label = otr[1][randomIndex+subidx]
+            toa = np.array(dataimg)
+            img = toa.reshape(28,28)
+            plt.imshow(img, cmap='gray', vmin=0, vmax=1)
+            plt.title(f"std:{label}")
+            plt.axis('off')
+
+        for y in range(10):
+            subidx = x*10 + y + 1
+            plt.subplot(8,10, subidx+10)
+            dataimg = ytr[0][randomIndex+subidx].reshape(28, 28)
+            label = ytr[1][randomIndex+subidx]
+            toa = np.array(dataimg)
+            img = toa.reshape(28,28)
+            plt.imshow(img, cmap='gray', vmin=0, vmax=1)
+            plt.title(f"yue:{label}")
+            plt.axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+if __name__ == "__main__":
+    #std_mnist_dataset()
+    #compare_mnist_yue_vs_original()
+    #create_my_dataset()
+    show_my_dataset()

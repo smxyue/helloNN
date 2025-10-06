@@ -366,8 +366,8 @@ def test_drawed_digits_shallow():
 
 if __name__ == "__main__":
     #tranin_and_use()
-    #for i in range(10):
-    #    test_hand_draw()
+    for i in range(10):
+        test_hand_draw()
     #model =load_my_shallow_net()
     #if (model == None):
     #    print("Failed to load model")
@@ -376,4 +376,4 @@ if __name__ == "__main__":
         #got = predict_data(model, image)
         #print("Predicted digit:", got)
     #    random_test_samples(model, 20)
-    test_drawed_digits_shallow()
+    #test_drawed_digits_shallow()
