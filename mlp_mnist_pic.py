@@ -5,11 +5,11 @@ import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 
 from mnist_dataset import MnistDataset
-from mylib import load_data
+from mylib import load_data,interpolate_vectors
 
 # ------------ 超参数 ------------
-BATCH_SIZE  = 256
-EPOCHS      = 1
+EPOCHS      = 10
+BATCH_SIZE  = 128
 Z_DIM       = 32               # 隐向量维度
 LR          = 1e-3
 DEVICE      = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -27,81 +27,136 @@ class AutoEncoder(nn.Module):
         super().__init__()
         # 编码器 784 -> 128 -> 64 -> z_dim
         self.encoder = nn.Sequential(
-            nn.Linear(784, 128), nn.ReLU(),
-            nn.Linear(128, 64),  nn.ReLU(),
-            nn.Linear(64, z_dim)
+            nn.Linear(784, 256), 
+            nn.ReLU(),
+            nn.Linear(256, 128),  
+            nn.ReLU(),
+            nn.Linear(128, z_dim),
+            nn.Sigmoid(),  # 像素值归一化到 [0,1]
         )
         # 解码器 z_dim -> 64 -> 128 -> 784
         self.decoder = nn.Sequential(
-            nn.Linear(z_dim, 64),  nn.ReLU(),
-            nn.Linear(64, 128),    nn.ReLU(),
-            nn.Linear(128, 784),   nn.Sigmoid()  # 像素值归一化到 [0,1]
+            nn.Linear(z_dim, 128),  
+            nn.ReLU(),
+            nn.Linear(128,256),    
+            nn.ReLU(),
+            nn.Linear(256, 784),   
         )
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=LR)
+        self.criterion = nn.MSELoss()
+        self.z_dim = z_dim
 
         try:
             # Check if encoder and decoder weights files exist in current directory
             encoder_path = "AE_encoder.pth"
             decoder_path = "AE_decoder.pth"
     
-            if os.path.exists(encoder_path):
+            if os.path.exists(encoder_path) and os.path.exists(decoder_path):
                 checkpoint = torch.load(encoder_path, map_location=DEVICE)
                 self.encoder.load_state_dict(checkpoint)
                 print("AutoEncoder: Loaded pre-trained encoder weights")
-            else:
-                print("AutoEncoder: No pre-trained encoder weights found, initializing randomly")
-        
-            if os.path.exists(decoder_path):
                 checkpoint = torch.load(decoder_path, map_location=DEVICE)
                 self.decoder.load_state_dict(checkpoint)
                 print("AutoEncoder: Loaded pre-trained decoder weights")
             else:
-                print("AutoEncoder: No pre-trained decoder weights found, initializing randomly")
-        
+                print("No pre-trained weights found, initializing randomly")
+                self._initialize_weights()
         except Exception as e:
             print(f"AutoEncoder: Could not load pre-trained weights: {e}")
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                nn.init.constant_(m.bias, 0)
     def forward(self, x):
         z = self.encoder(x)
         return self.decoder(z)
 
-net = AutoEncoder(Z_DIM).to(DEVICE)
-criterion = nn.MSELoss()
-optimizer = torch.optim.Adam(net.parameters(), lr=LR)
 
-# ------------ 训练 ------------
-for epoch in range(1, EPOCHS+1):
-    total_loss = 0
-    for _,x, _ in train_loader:
-        x = x.to(DEVICE)
-        optimizer.zero_grad()
-        x_hat = net(x)
-        loss = criterion(x_hat, x)
-        loss.backward()
-        optimizer.step()
-        total_loss += loss.item()
-    print(f"Epoch {epoch}/{EPOCHS}  MSE={total_loss/len(train_loader):.4f}")
+    def train_model(self):
+        for epoch in range(1, EPOCHS+1):
+            total_loss = 0
+            for lable,x, lable_tensor in train_loader:
+                x = x.to(DEVICE)
 
-# 保存解码器（我们待会要用它做生成）
-torch.save(net.encoder.state_dict(), "AE_encoder.pth")
-torch.save(net.decoder.state_dict(), "AE_decoder.pth")
-print("Encoder saved to AE_encoder.pth")
-print("Decoder saved to AE_decoder.pth")
+                self.optimizer.zero_grad()
+                x_hat = self(x)
+                loss = self.criterion(x_hat, x)
+                loss.backward()
+                self.optimizer.step()
+                total_loss += loss.item()
+            print(f"Epoch {epoch}/{EPOCHS}  MSE={total_loss/len(train_loader):.4f}")
 
-# ------------ 生成阶段 ------------
-decoder = AutoEncoder(Z_DIM).decoder          # 新建一个解码器结构
-decoder.load_state_dict(torch.load("AE_decoder.pth", map_location=DEVICE))
-decoder.to(DEVICE).eval()
+        # 保存解码器（我们待会要用它做生成）
+        torch.save(self.encoder.state_dict(), "AE_encoder.pth")
+        torch.save(self.decoder.state_dict(), "AE_decoder.pth")
+        print("Encoder saved to AE_encoder.pth")
+        print("Decoder saved to AE_decoder.pth")
 
-n_gen = 10
+    def show_result(self):
+        n_gen = 10
 
-fig, axes = plt.subplots(2, 5)
-axes = axes.flatten()
-with torch.no_grad():
-    for i in range(n_gen):
-        z = torch.randn(n_gen, Z_DIM).to(DEVICE)  # 随机噪声
-        fake_imgs=decoder(z).view(-1, 28, 28).cpu()
-        axes[i].imshow(fake_imgs[i], cmap='gray')
-        axes[i].set_title(f'{i}', fontsize=10)
-        axes[i].axis('off')
-plt.suptitle("MNIST digits generated by AE decoder")
-plt.tight_layout()
-plt.show()
+        fig, axes = plt.subplots(2, 5)
+        axes = axes.flatten()
+        with torch.no_grad():
+            for i in range(n_gen):
+                z = torch.randn(1, Z_DIM).to(DEVICE)  # 随机噪声
+                fake_imgs=self.decoder(z).view(-1, 28, 28).cpu()
+                axes[i].imshow(fake_imgs[0], cmap='gray')
+                axes[i].axis('off')
+                
+            plt.suptitle("MNIST digits generated by AE decoder")
+            plt.tight_layout()
+            plt.show()
+    def show_d2d(self):
+        # 显示不同z对生成结果的影响
+        n_gen = 10
+        dataset = MnistDataset()
+
+        fig, axes = plt.subplots(9,10, figsize=(10, 10))
+        axes = axes.flatten()
+        used=[]
+        for d in range(9):
+            lable,tl=torch.randint(0,9,(1,)).item(),torch.randint(0,9,(1,)).item()
+            while lable == tl:
+                tl=torch.randint(0,9,(1,)).item()
+            while (lable,tl) in used or (tl,lable) in used:
+                lable,tl=torch.randint(0,9,(1,)).item(),torch.randint(0,9,(1,)).item()
+            used.append((lable,tl))
+            lable,img,_ = dataset.get_digtal_sample(lable) 
+            tl,timg,_ = dataset.get_digtal_sample(tl) 
+            z1 = self.encoder(img.to(DEVICE)).view(-1, Z_DIM)  
+            z2= self.encoder(timg.to(DEVICE)).view(-1, Z_DIM)  
+            with torch.no_grad():
+                for idx,t in enumerate(interpolate_vectors(z1, z2, n_gen)):
+                    fake_imgs=self.decoder(t).view(-1, 28, 28).cpu()
+                    axes[d*10 +idx].imshow(fake_imgs[0], cmap='gray')
+                    axes[d*10 +idx].axis('off')
+        pairs_text = " ".join([f"{f}-{t}" for f, t in used])
+        plt.suptitle(f"{pairs_text}")
+        plt.tight_layout()
+        plt.show()
+        
+@torch.no_grad()
+def sanity_check(model):
+    z = torch.randn(1, Z_DIM, device=DEVICE)
+    imgs = []
+    for digit in range(10):
+        y = nn.functional.one_hot(torch.tensor(digit).view(1), 10).float().to(DEVICE)
+        x_hat = model.decoder(torch.cat([z, y], 1)).view(28, 28)
+        imgs.append(x_hat.cpu())
+    # 像素级方差
+    stack = torch.stack(imgs)          # 10×28×28
+    var = stack.std(dim=0).mean()
+    print(f"同一z，不同标签 → 像素标准差={var:.4f}")
+    if var < 0.05:
+        print("❌ 标签被完全忽略！")
+    else:
+        print("✅ 标签确实在起作用")
+
+if __name__ == "__main__":
+    net = AutoEncoder(z_dim=Z_DIM).to(DEVICE)
+    #net.train_model()
+    #net.show_result()
+    #sanity_check(net)
+    net.show_d2d()

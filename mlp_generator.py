@@ -109,5 +109,5 @@ class Generator(nn.Module):
 if __name__ == "__main__":
     pass
     g=Generator()
-    g.train_model()
+    g.show_result()
     

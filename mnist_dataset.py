@@ -35,6 +35,12 @@ class MnistDataset(Dataset):
         plt.imshow(img, interpolation='none', cmap='Blues')
         plt.show()
 
+    def get_digtal_sample(self, digital):
+        index= random.randint(0, len(self.data_df[0])-1)
+        while self.data_df[1][index] != digital:
+            index= random.randint(0, len(self.data_df[0])-1)
+        return self.__getitem__(index)
+
 if __name__ == "__main__":
     dataset = MnistDataset()
     print("len = ", len(dataset))

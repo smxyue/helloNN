@@ -17,13 +17,16 @@ class CondVAE(nn.Module):
         self.z_dim = z_dim
         # encoder: 784+10 → 400 → 20 (μ) / 20 (logσ²)
         self.fc_enc = nn.Sequential(
-            nn.Linear(794, 400), nn.ReLU(),
+            nn.Linear(794, 400), 
+            nn.ReLU(),
             nn.Linear(400, z_dim*2)   # 前 z_dim 是 μ，后 z_dim 是 logσ²
         )
         # decoder: z+10 → 400 → 784
         self.fc_dec = nn.Sequential(
-            nn.Linear(z_dim+10, 400), nn.ReLU(),
-            nn.Linear(400, 784),      nn.Sigmoid()
+            nn.Linear(z_dim+10, 400), 
+            nn.ReLU(),
+            nn.Linear(400, 784),      
+            nn.Sigmoid()
         )
         self.opt = torch.optim.Adam(self.parameters(), lr=1e-3)
         if os.path.exists(filepath := "cond_vae_model.pth"):

@@ -8,6 +8,8 @@ import matplotlib.pyplot as plt
 
 import gzip
 
+import torch
+
 def load_data(filename="data/mnist.pkl.gz"):
     f = gzip.open(filename, 'rb')
     training_data, validation_data, test_data = pickle.load(f, encoding="latin1")
@@ -392,6 +394,18 @@ def compare_mnist_yue_vs_original():
 
     plt.tight_layout()
     plt.show()
+
+def interpolate_vectors(a: torch.Tensor, b: torch.Tensor, steps: int) -> torch.Tensor:
+    if a.shape != b.shape:
+        raise ValueError("两个向量维度必须相同")
+    if steps < 2:
+        raise ValueError("steps 必须 ≥ 2")
+
+    # 生成插值系数 [0, 1]
+    t = torch.linspace(0, 1, steps, device=a.device, dtype=a.dtype)
+    # 增加维度以便广播
+    t = t.view(steps, *(1,) * a.ndim)          # (steps, 1, 1, ..., 1)
+    return (1 - t) * a + t * b 
 
 if __name__ == "__main__":
     #std_mnist_dataset()
