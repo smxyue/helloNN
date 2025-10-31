@@ -47,7 +47,9 @@ class MyModel(nn.Module):
             nn.Linear(64, 1)
         )
         if os.path.exists(model_path):
-            self.load_state_dict(torch.load(model_path))
+            state = torch.load(model_path, map_location=DEVICE)
+            self.load_state_dict(state)
+            print("Loaded pre-trained model from", model_path)
         else:
             for m in self.modules():
                 if isinstance(m, nn.Linear):
@@ -63,7 +65,7 @@ class MyModel(nn.Module):
         pass
         
     
-    def train_model(self, epochs=1000000, learning_rate=0.00001,batch_size=100):
+    def train_model(self, epochs=2000, learning_rate=0.001,batch_size=100):
         self.to(DEVICE)
 
         criterion = nn.MSELoss()  # or appropriate loss function
@@ -105,7 +107,7 @@ class MyModel(nn.Module):
 
 if __name__ == "__main__":
     model = MyModel().to(DEVICE)
-    model.train_model()
+    #model.train_model()
     test_values = torch.linspace(-5000, 5000, 20).tolist()
     #test_values+=[-500,500]
     
@@ -114,4 +116,4 @@ if __name__ == "__main__":
         log_val = np.log10(np.abs(val) + 1e-6)
         prediction = model.predict(log_val)
         expected = val ** 2
-        print(f"Input: {val}, Predicted: {prediction:.2f}, Expected: {expected} error: {abs(prediction - expected):.2f}")
+        print(f"x: {val}, Predicted: {prediction:.2f},  error: {abs(prediction - expected):.2f}")

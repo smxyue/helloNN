@@ -21,9 +21,12 @@ def build_model():
 
 # 数据生成
 def get_data():
-
-    x = torch.linspace(-5000, 5000, 1000).unsqueeze(1)
+    if not os.path.exists(MODEL_PATH):
+        x=torch.randint(-5, 5, (100000,)).tolist()
+    else:
+        x = torch.linspace(-5, 5, 100000).unsqueeze(1)
     y = x ** 2
+
     return x, y
 # 归一化函数
 def normalize(x, mean, std):
@@ -65,10 +68,17 @@ def trainMode():
     total_loss = 0
     print(f"Training(with {device})...")
     starttime = time.time()      
-    for i in range(1,2000):
-        noise = x_norm * (1.0 + torch.randn(x_norm.size(0),1).to(device)*0.05)
+    for i in range(1,20000):
+        noise = x_norm * (1.0 + torch.randn(x_norm.size(0),1).to(device)*0.005)
         pred_norm = model(noise)
-        loss = loss_fn(pred_norm, y_norm)
+        mse_loss = loss_fn(pred_norm, y_norm)
+        # Calculate L2 regularization term
+        l2_reg = torch.tensor(0., device=device)
+        for param in model.parameters():
+            l2_reg += torch.norm(param)
+        
+        # Combine MSE loss with regularization loss
+        loss = mse_loss + 1e-5 * l2_reg
         opt.zero_grad()
         loss.backward()
         opt.step()
