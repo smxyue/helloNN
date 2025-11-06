@@ -68,11 +68,11 @@ class MyModel(nn.Module):
         
     
 
-    def train_model(self, epochs=30, learning_rate=0.0001, batch_size=64):
+    def train_model(self, epochs=30, learning_rate=0.00001, batch_size=64):
         self.to(DEVICE)
 
         criterion = nn.MSELoss()  # or appropriate loss function
-        optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate, weight_decay=1e-5)
+        optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
 
         # 使用 DataLoader 的 batch 训练，避免用整个 x 每次更新
         data_loader = get_data_loader(batch_size=batch_size)
@@ -86,7 +86,7 @@ class MyModel(nn.Module):
 
                 optimizer.zero_grad()
                 output = self(data)
-                loss = criterion(output, target)
+                loss = torch.sum((output-target)**2)
                 loss.backward()
 
                 # 防止梯度爆炸导致损失跳回

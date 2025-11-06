@@ -7,10 +7,8 @@ import os
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model_path="F2uselog.pth"
 def my_data():
-    if os.path.exists(model_path):
-        x = torch.randint(-5000, 5000, (100000,)).tolist()
-    else:
-        x = torch.linspace(-5000, 5000, 100000).tolist()
+    x = torch.randint(-5000, 5000, (100000,)).tolist()
+    
     x=np.array(x)
     y = x ** 2
     # 对数变换
@@ -65,7 +63,7 @@ class MyModel(nn.Module):
         pass
         
     
-    def train_model(self, epochs=2000, learning_rate=0.001,batch_size=100):
+    def train_model(self, epochs=20000, learning_rate=0.0001,batch_size=100):
         self.to(DEVICE)
 
         criterion = nn.MSELoss()  # or appropriate loss function
@@ -82,7 +80,7 @@ class MyModel(nn.Module):
             y=y.to(DEVICE)   
             optimizer.zero_grad()
             output = self(x)
-            loss = criterion(output, y)
+            loss = torch.sum((output-y)**2)
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
@@ -104,16 +102,14 @@ class MyModel(nn.Module):
             output = self(input_data)
             output = 10 ** output - 1e-6
             return output.item()
-
+    def test_int(self):
+        val = [0,-1,1,-5,5,10,50,100,500,1000,4000,5000]
+        for v in val:
+            log_v = np.log10(np.abs(v) + 1e-6)
+            pred = self.predict(log_v)
+            expected = v ** 2
+            print(f"x: {v}, Predicted: {pred:.2f}, Expected: {expected:.2f}, Error: {abs(pred - expected):.2f}")
 if __name__ == "__main__":
     model = MyModel().to(DEVICE)
-    #model.train_model()
-    test_values = torch.linspace(-5000, 5000, 20).tolist()
-    #test_values+=[-500,500]
-    
-    for val in test_values:
-        # Apply the same log transform as used in training
-        log_val = np.log10(np.abs(val) + 1e-6)
-        prediction = model.predict(log_val)
-        expected = val ** 2
-        print(f"x: {val}, Predicted: {prediction:.2f},  error: {abs(prediction - expected):.2f}")
+    model.train_model()
+    model.test_int()

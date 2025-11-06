@@ -46,13 +46,13 @@ class MyModel(nn.Module):
     def __init__(self):
         super().__init__()
         self.fc = nn.Sequential(
-            nn.Linear(1, 128),
+            nn.Linear(1, 256),
             nn.SiLU(),
-            nn.Linear(128, 1024),
+            nn.Linear(256, 2048),
             nn.SiLU(),
-            nn.Linear(1024, 128),
+            nn.Linear(2048, 256),
             nn.SiLU(),
-            nn.Linear(128, 1)
+            nn.Linear(256, 1)
         )
         if os.path.exists(model_path):
             state = torch.load(model_path, map_location=DEVICE)
@@ -74,11 +74,11 @@ class MyModel(nn.Module):
         
     
 
-    def train_model(self, epochs=30, learning_rate=0.0001, batch_size=64):
+    def train_model(self, epochs=100, learning_rate=0.00001, batch_size=64):
         self.to(DEVICE)
 
         criterion = nn.MSELoss()  # or appropriate loss function
-        optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate, weight_decay=1e-5)
+        optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate)
         # Add learning rate scheduler
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode='min', factor=0.5, patience=3
@@ -95,11 +95,12 @@ class MyModel(nn.Module):
 
                 optimizer.zero_grad()
                 output = self(data)
-                loss = criterion(output, target)
+                #loss = criterion(output, target)
+                loss = torch.sum((output - target)**2)
                 loss.backward()
 
                 # 防止梯度爆炸导致损失跳回
-                #torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
+                torch.nn.utils.clip_grad_norm_(self.parameters(), max_norm=1.0)
 
                 optimizer.step()
                 total_loss += loss.item()
@@ -163,13 +164,24 @@ class MyModel(nn.Module):
                 errors+=1
                 print(f"norm({x_norm[i].item()},{y_norm[i].item()}) Real({x[i].item()}, {y[i].item()}) 偏差:{x[i].item()**2 - y[i].item()}")
         print(f"Total data errors: {errors}")
-
+    def test(self):
+        for i in range(6):
+            val = float(input(f"[{6-i}]请输入一个数字:"))
+            with torch.no_grad():
+                val_norm = normalize(val, 5000)
+                val_tensor = torch.tensor([[val_norm]], dtype=torch.float32).to(DEVICE)
+                pred_norm = model(val_tensor)
+                pred = denormalize(pred_norm.cpu(), 25000000)
+                out = val**2
+                print(f"x={val} :{pred.item()} Δ={pred.item()-out}")
 if __name__ == "__main__":
     model = MyModel().to(DEVICE)
-    model.train_model()
-    test_values = torch.linspace(0, 5000, 20).tolist()
-    #test_values+=[-500,500]
+    #model.train_model()
     #model.plot_train_loss()
+    
+    test_values=[0,1,-1,-5,-5,10,50,100,500,1000,4000,5000]
+    
+    
     val_all = 0
     for val in test_values:
         # Apply the same log transform as used in training
@@ -180,3 +192,4 @@ if __name__ == "__main__":
     print(f"Sum error: {val_all:.2f}")
 
     #model.test_data()
+    model.test()
